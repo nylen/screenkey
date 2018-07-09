@@ -96,8 +96,11 @@ class Screenkey(gtk.Window):
         self.set_active_monitor(self.options.screen)
 
         cmap = scr.get_rgba_colormap()
-        if cmap is not None:
+        if cmap is None:
+            self.logger.debug("Cannot set transparency")
+        else:
             self.set_colormap(cmap)
+            self.logger.debug("Set tansparency")
 
         self.labelmngr = None
         self.enabled = True
@@ -174,6 +177,7 @@ class Screenkey(gtk.Window):
 
 
     def update_label(self):
+        self.logger.debug("update_label")
         attr = self.label.get_attributes()
         text = self.label.get_text()
         self.override_font_attributes(attr, text)
@@ -186,6 +190,7 @@ class Screenkey(gtk.Window):
 
 
     def on_expose(self, widget, *_):
+        self.logger.debug("on_expose")
         ctx = widget.get_window().cairo_create()
         ctx.set_source_rgba(self.bg_color.red_float,
                             self.bg_color.green_float,
@@ -251,6 +256,7 @@ class Screenkey(gtk.Window):
 
 
     def show(self):
+        self.logger.debug("show")
         super(Screenkey, self).show()
 
 
