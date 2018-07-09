@@ -229,65 +229,21 @@ class LabelManager(object):
         repeats = 0
         for i, key in enumerate(self.data):
             if i != 0:
-                last = self.data[i - 1]
-
-                # compress repeats
-                if self.compr_cnt and key.markup == last.markup:
-                    repeats += 1
-                    if repeats < self.compr_cnt:
-                        pass
-                    elif i == len(self.data) - 1 or key.markup != self.data[i + 1].markup:
-                        if not recent and (stamp - key.stamp).total_seconds() < self.recent_thr:
-                            markup += '<u>'
-                            recent = True
-                        markup += '<sub><small>…{}×</small></sub>'.format(repeats + 1)
-                        if len(key.markup) and key.markup[-1] == '\n':
-                            markup += '\n'
-                        continue
-                    else:
-                        continue
-
-                # character block spacing
-                if len(last.markup) and last.markup[-1] == '\n':
-                    pass
-                elif key.is_ctrl or last.is_ctrl or key.spaced or last.spaced:
-                    markup += ' '
-                elif key.bk_stop or last.bk_stop or repeats > self.compr_cnt:
-                    markup += '<span font_family="sans">\u2009</span>'
-                if key.markup != last.markup:
-                    repeats = 0
-
-            key_markup = key.markup
-            if not recent and (stamp - key.stamp).total_seconds() < self.recent_thr:
-                recent = True
-                key_markup = '<u>' + key_markup
-
-            # disable ligatures
-            if len(key.markup) == 1 and 0x0300 <= ord(key.markup) <= 0x036F:
-                # workaround for pango not handling ZWNJ correctly for combining marks
-                markup += '\u180e' + key_markup + '\u200a'
-            elif len(key_markup):
-                markup += '\u200c' + key_markup
-
-        if len(markup) and markup[-1] == '\n':
-            markup = markup.rstrip('\n')
-            if not self.vis_space and not self.data[-1].is_ctrl:
-                # always show some return symbol at the last line
-                markup += self.replace_syms['Return'].repl
-        if recent:
-            markup += '</u>'
+                markup += ' '
+            markup += key.markup
         self.logger.debug("Label updated: %s." % repr(markup))
         self.listener(markup)
 
 
     def key_press(self, event):
+        is_pressed = True
         if event is None:
             self.logger.debug("inputlistener failure: {}".format(str(self.kl.error)))
             self.listener(None)
             return
         if event.pressed == False:
             self.logger.debug("Key released {:5}(ks): {}".format(event.keysym, event.symbol))
-            return
+            is_pressed = False
         if event.symbol in self.ignore:
             self.logger.debug("Key ignored  {:5}(ks): {}".format(event.keysym, event.symbol))
             return
@@ -299,29 +255,11 @@ class LabelManager(object):
             self.logger.debug("Key {:8} {:5}(ks): {} ({}, mask: {:08b})".format
                               (state, event.keysym, string, event.symbol, event.mods_mask))
 
-        # Stealth enable/disable handling
-        for mod in ['shift', 'ctrl', 'alt']:
-            if not event.repeated and event.modifiers[mod] \
-               and event.symbol in MODS_SYMS[mod]:
-                self.enabled = not self.enabled
-                state = 'enabled' if self.enabled else 'disabled'
-                self.logger.info("{mod}+{mod} detected: screenkey {state}".format(
-                    mod=mod.capitalize(), state=state))
-        if not self.enabled:
+        # Modifiers only
+        if keysym_to_mod(event.symbol) is None:
             return False
 
-        # keep the window alive as the user is composing
-        mod_pressed = keysym_to_mod(event.symbol) is not None
-        update = len(self.data) and (event.filtered or mod_pressed)
-
-        if not event.filtered:
-            if self.key_mode in ['translated', 'composed']:
-                update |= self.key_normal_mode(event)
-            elif self.key_mode == 'raw':
-                update |= self.key_raw_mode(event)
-            else:
-                update |= self.key_keysyms_mode(event)
-        if update:
+        if self.key_keysyms_mode(event, is_pressed):
             self.update_text()
 
 
@@ -450,10 +388,14 @@ class LabelManager(object):
         return True
 
 
-    def key_keysyms_mode(self, event):
+    def key_keysyms_mode(self, event, is_pressed):
         if event.symbol in REPLACE_SYMS:
             value = event.symbol
         else:
             value = event.string or event.symbol
-        self.data.append(KeyData(datetime.now(), True, True, True, True, value))
-        return True
+
+        old_len = len(self.data)
+        self.data = [key for key in self.data if key.markup != value]
+        if is_pressed:
+            self.data.append(KeyData(datetime.now(), True, True, True, True, value))
+        return len(self.data) != old_len

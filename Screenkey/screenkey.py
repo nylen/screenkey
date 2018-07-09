@@ -279,17 +279,10 @@ class Screenkey(gtk.Window):
         self.label.set_text(text)
         self.label.set_attributes(attr)
 
-        if not self.get_property('visible'):
+        if markup == '' and self.get_property('visible'):
+            self.hide()
+        elif markup != '' and not self.get_property('visible'):
             self.show()
-        if self.timer_hide:
-            self.timer_hide.cancel()
-        if self.options.timeout > 0:
-            self.timer_hide = Timer(self.options.timeout, self.on_timeout_main)
-            self.timer_hide.start()
-        if self.timer_min:
-            self.timer_min.cancel()
-        self.timer_min = Timer(self.options.recent_thr * 2, self.on_timeout_min)
-        self.timer_min.start()
 
 
     def on_timeout_main(self):
