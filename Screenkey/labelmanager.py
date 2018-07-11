@@ -149,6 +149,7 @@ class LabelManager(object):
         self.logger = logger
         self.listener = listener
         self.data = []
+        self.key_count = 0
         self.enabled = True
         self.mods_only = mods_only
         self.multiline = multiline
@@ -232,7 +233,9 @@ class LabelManager(object):
                 markup += ' '
             markup += key.markup
         self.logger.debug("Label updated: %s." % repr(markup))
-        self.listener(markup)
+        if markup == '':
+            self.key_count = 0
+        self.listener(markup, self.key_count)
 
 
     def key_press(self, event):
@@ -257,7 +260,12 @@ class LabelManager(object):
 
         # Modifiers only
         if keysym_to_mod(event.symbol) is None:
-            return False
+            if len(self.data) and is_pressed:
+                self.key_count += 1
+                self.update_text()
+                return True
+            else:
+                return False
 
         if self.key_keysyms_mode(event, is_pressed):
             self.update_text()

@@ -30,6 +30,8 @@ class Screenkey(gtk.Window):
     def __init__(self, logger, options, show_settings=False):
         gtk.Window.__init__(self, gtk.WINDOW_POPUP)
 
+        self.widget = None
+
         self.exit_status = None
         self.timer_hide = None
         self.timer_min = None
@@ -192,10 +194,22 @@ class Screenkey(gtk.Window):
     def on_expose(self, widget, *_):
         self.logger.debug("on_expose")
         ctx = widget.get_window().cairo_create()
-        ctx.set_source_rgba(self.bg_color.red_float,
-                            self.bg_color.green_float,
-                            self.bg_color.blue_float,
-                            self.options.opacity)
+
+        # update background color
+        ctx = widget.get_window().cairo_create()
+        if self.key_count == 0:
+            self.logger.debug('bg black')
+            ctx.set_source_rgba(0, 0, 0, 1)
+        elif self.key_count % 3 == 1:
+            self.logger.debug('bg green')
+            ctx.set_source_rgba(0, 0.5, 0, 1)
+        elif self.key_count % 3 == 2:
+            self.logger.debug('bg blue')
+            ctx.set_source_rgba(0, 0, 0.5, 1)
+        else:
+            self.logger.debug('bg red')
+            ctx.set_source_rgba(0.5, 0, 0, 1)
+
         ctx.set_operator(cairo.OPERATOR_SOURCE)
         ctx.paint()
         return False
@@ -259,6 +273,11 @@ class Screenkey(gtk.Window):
         self.logger.debug("show")
         super(Screenkey, self).show()
 
+    def hide(self):
+        self.logger.debug("hide")
+        super(Screenkey, self).hide()
+        self.widget = None
+
 
     def on_labelmngr_error(self):
         msg = gtk.MessageDialog(parent=self,
@@ -275,7 +294,7 @@ class Screenkey(gtk.Window):
         self.quit(exit_status=os.EX_SOFTWARE)
 
 
-    def on_label_change(self, markup):
+    def on_label_change(self, markup, key_count = 0):
         if markup is None:
             self.on_labelmngr_error()
             return
@@ -284,6 +303,8 @@ class Screenkey(gtk.Window):
         self.override_font_attributes(attr, text)
         self.label.set_text(text)
         self.label.set_attributes(attr)
+
+        self.key_count = key_count
 
         if markup == '' and self.get_property('visible'):
             self.hide()
