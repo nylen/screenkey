@@ -21,6 +21,7 @@ Status = c_int
 String = c_char_p
 Time = c_ulong
 Window = XID
+UByte32Array = c_ubyte * 32
 
 class Display(Structure):
     pass
@@ -199,6 +200,10 @@ XPending.restype = c_int
 XSynchronize = libX11.XSynchronize
 XSynchronize.argtypes = [POINTER(Display), c_int]
 XSynchronize.restype = POINTER(CFUNCTYPE(c_int, POINTER(Display)))
+
+XQueryKeymap = libX11.XQueryKeymap
+XQueryKeymap.argtypes = [POINTER(Display), UByte32Array]
+XQueryKeymap.restype = None
 
 
 ## xim
